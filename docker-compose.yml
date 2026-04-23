@@ -1,0 +1,62 @@
+version: '3.8'
+
+networks:
+  three_tier_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret123
+      POSTGRES_DB: appdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - three_tier_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend_app
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://admin:secret123@database:5432/appdb
+    ports:
+      - "5000:5000"
+    networks:
+      - three_tier_network
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_app
+    restart: always
+    environment:
+      NODE_ENV: production
+      REACT_APP_API_URL: http://40.66.44.255:5000
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    networks:
+      - three_tier_network
+    depends_on:
+      - backend
