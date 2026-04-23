@@ -1,0 +1,30 @@
+name: Deploy Three-Tier App to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and deploy with docker compose
+        run: |
+          docker-compose down || true
+          docker-compose up -d --build
+          docker-compose ps
+
+      - name: Verify services
+        run: |
+          sleep 15
+          curl -f http://localhost:5000/api/health && echo "Backend OK"
+          curl -f http://localhost:3000 && echo "Frontend OK"
+
+      - name: App URL
+        run: echo "App is live at http://40.66.44.255:3000"
